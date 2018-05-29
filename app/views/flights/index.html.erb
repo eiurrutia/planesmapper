@@ -54,7 +54,7 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
 
 
 
-  const socket = io.connect('ws://integracion-tarea-3.herokuapp.com',
+  const socket = io.connect('wss://integracion-tarea-3.herokuapp.com',
       {path: "/flights", reconnect: true, transports: ['websocket', 'polling']});
   socket.on('connect', function(){
     socket.emit('FLIGHTS');
