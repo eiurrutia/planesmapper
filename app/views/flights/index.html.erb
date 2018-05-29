@@ -27,10 +27,7 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
   var colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFFFF", "#000000", "#FFFF00", "#00FFFF", "#FF00FF"];
   var count = 0;
   var planesInfoWindows = {};
-
-
-
-
+  var planesIcons = {};
 
   const socket = io.connect('wss://integracion-tarea-3.herokuapp.com',
       {path: "/flights", reconnect: true, transports: ['websocket', 'polling']});
@@ -45,14 +42,28 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
           icon: {
             path: 'M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z',
             fillColor: colors[count],
-            fillOpacity: 0.7,
+            fillOpacity: 1.0,
             scale: 0.1,
             labelOrigin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(200, 200),
+            anchor: new google.maps.Point(220, 220),
             scaledSize: new google.maps.Size(10, 10),
-            rotation: 0
+            rotation: 0,
+            strokeColor: 'black',
+            strokeWeight: 1
           }
         });
+        planesIcons[data[key].code] = {
+          path: 'M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z',
+          fillColor: colors[count],
+          fillOpacity: 1.0,
+          scale: 0.1,
+          labelOrigin: new google.maps.Point(0, 0),
+          anchor: new google.maps.Point(220, 220),
+          scaledSize: new google.maps.Size(10, 10),
+          rotation: 0,
+          strokeColor: 'black',
+          strokeWeight: 1
+        }
 
         var content = ("<H3>" + data[key].code + "</H3>·Aerolínea:<br/>" + data[key].airline + "<br/>·"+
                         data[key].plane + "<br/>·" + data[key].seats.to_s + "Asientos<br/>·Destino: " +
@@ -74,8 +85,8 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
           path: [],
           geodesic: true,
           strokeColor: colors[count],
-          strokeOpacity: 1.0,
-          strokeWeight: 5
+          strokeOpacity: 0.7,
+          strokeWeight: 7
         });
         if (count < 7) {count += 1;} else {count = 0;}
 
@@ -95,17 +106,17 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
         flightPath.setMap(map);
 
       }
-      console.log('flights');
-      console.log(flights);
-      console.log('planes');
-      console.log(planes);
+      // console.log('flights');
+      // console.log(flights);
+      // console.log('planes');
+      // console.log(planes);
     });
 
     socket.emit('AIRPORTS');
     socket.on('AIRPORTS', function (data) {
       for (var key in data) {
-        console.log('airports');
-        console.log(data[key]);
+        // console.log('airports');
+        // console.log(data[key]);
         airports[key] = new google.maps.Marker({
           position: {lat: data[key].airport_position[0], lng: data[key].airport_position[1]},
           map: map,
@@ -126,19 +137,13 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
     });
 
     socket.on('POSITION', function (data) {
-      console.log('DATA CODE');
-      console.log(data.code);
-      console.log('CATETO OPUESTO');
-      console.log((data.position[0]-planes[data.code].getPosition().lat()));
-      console.log('CATETO ADY');
-      console.log((data.position[1]-planes[data.code].getPosition().lng()));
-      var mRad = math.atan((data.position[0]-planes[data.code].getPosition().lat())/(data.position[1]-planes[data.code].getPosition().lng()));
-      var mDeg = mRad * 180 / math.PI;
-      console.log(planes[data.code]);
+
+      var new_position = new google.maps.LatLng(data.position[0], data.position[1]);
+      planesIcons[data.code].rotation = -90 + google.maps.geometry.spherical.computeHeading(planes[data.code].getPosition(), new_position);
+      planes[data.code].setIcon(planesIcons[data.code]);
+
+
       planes[data.code].setPosition({lat: data.position[0], lng: data.position[1]});
-      planes[data.code].icon.rotation = 220  + mDeg;
-      console.log(mRad);
-      console.log(mDeg);
 
       var path = planesPolylines[data.code].getPath();
       path.push(new google.maps.LatLng(data.position[0],data.position[1]));
@@ -155,44 +160,4 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
 
   });
 
-  // This example adds a marker to indicate the position of Bondi Beach in Sydney,
-  // Australia.
-
-//
-//
-//
-//
-//   handler = Gmaps.build('Google');
-//   handler.buildMap({ provider: {}, internal: {id: 'map'}}, function(){
-//     markers = handler.addMarkers(<%=raw @hash.to_json %>);
-//
-//     var pol = <%=raw @lines.to_json %>;
-//     var polylines2 = handler.addPolylines(<%=raw @lines.to_json %>, { strokeColor: '#49639A', strokeOpacity: 0.5, strokeWeight: 10});
-//     var polylines = handler.addPolylines(
-//    [
-//      [
-//        {lat: 42, lng: -6},
-//        {lat: 50, lng: -6}
-//      ]
-//    ],
-//    { strokeColor: '#49639A'}
-//  );
-//     handler.bounds.extendWith(polylines2);
-//     handler.bounds.extendWith(markers);
-//     handler.fitMapToBounds();
-//   });
-//
 </script>
-<!-- <script async defer
-// src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww2n0fVfS4&callback=initMap"></script> -->
-<!-- <div id="map"></div>
-//     <script>
-//       var map;
-//       function initMap() {
-//         map = new google.maps.Map(document.getElementById('map'), {
-//           center: {lat: -34.397, lng: 150.644},
-//           zoom: 8
-//         });
-//       }
-//     </script>
-//     -->
