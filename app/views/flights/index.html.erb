@@ -2,6 +2,7 @@
 <script async defer
 src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww2n0fVfS4&callback=initMap"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="https://unpkg.com/mathjs@4.4.0/dist/math.min.js"></script>
 
 <div style='width: 800px;'>
   <div id="map" style='width: 800px; height: 400px;'></div>
@@ -11,35 +12,12 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
 
   var map;
   var image;
-  var planeIcon;
-
-  var goldStar;
-
 
   function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
       zoom: 4,
       center: {lat: -35, lng: -70}
     });
-
-    planeIcon = {
-      url: 'https://image.flaticon.com/icons/svg/61/61212.svg', // url
-      size: new google.maps.Size(50, 50), // scaled size
-      origin: new google.maps.Point(0, 0), // origin
-      anchor: new google.maps.Point(0, 0) // anchor
-    };
-
-    goldStar = {
-      path: 'M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z',
-      fillColor: 'blue',
-      fillOpacity: 0.9,
-      scale: 0.1,
-      origin: new google.maps.Point(0,0),
-      anchor: new google.maps.Point(0, 0),
-      scaledSize: new google.maps.Size(10, 10),
-      rotation: 0
-    };
-
   }
 
   var airports = {};
@@ -64,7 +42,16 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
         planes[data[key].code] = new google.maps.Marker({
           position: {lat: 0, lng: 0},
           map: map,
-          icon: goldStar
+          icon: {
+            path: 'M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z',
+            fillColor: colors[count],
+            fillOpacity: 0.7,
+            scale: 0.1,
+            labelOrigin: new google.maps.Point(0, 0),
+            anchor: new google.maps.Point(200, 200),
+            scaledSize: new google.maps.Size(10, 10),
+            rotation: 0
+          }
         });
 
         var content = ("<H3>" + data[key].code + "</H3>·Aerolínea:<br/>" + data[key].airline + "<br/>·"+
@@ -139,8 +126,19 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww
     });
 
     socket.on('POSITION', function (data) {
+      console.log('DATA CODE');
+      console.log(data.code);
+      console.log('CATETO OPUESTO');
+      console.log((data.position[0]-planes[data.code].getPosition().lat()));
+      console.log('CATETO ADY');
+      console.log((data.position[1]-planes[data.code].getPosition().lng()));
+      var mRad = math.atan((data.position[0]-planes[data.code].getPosition().lat())/(data.position[1]-planes[data.code].getPosition().lng()));
+      var mDeg = mRad * 180 / math.PI;
       console.log(planes[data.code]);
       planes[data.code].setPosition({lat: data.position[0], lng: data.position[1]});
+      planes[data.code].icon.rotation = 220  + mDeg;
+      console.log(mRad);
+      console.log(mDeg);
 
       var path = planesPolylines[data.code].getPath();
       path.push(new google.maps.LatLng(data.position[0],data.position[1]));

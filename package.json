@@ -2,6 +2,7 @@
   "name": "PlanesMapper",
   "private": true,
   "dependencies": {
+    "mathjs": "^4.4.0",
     "socket.io": "^2.1.1"
   }
 }
