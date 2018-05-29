@@ -1,0 +1,7 @@
+{
+  "name": "PlanesMapper",
+  "private": true,
+  "dependencies": {
+    "socket.io": "^2.1.1"
+  }
+}

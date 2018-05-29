@@ -1,0 +1,200 @@
+
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww2n0fVfS4&callback=initMap"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+
+<div style='width: 800px;'>
+  <div id="map" style='width: 800px; height: 400px;'></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.1/socket.io.js"></script>
+<script type="text/javascript">
+
+  var map;
+  var image;
+  var planeIcon;
+
+  var goldStar;
+
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById('map'), {
+      zoom: 4,
+      center: {lat: -35, lng: -70}
+    });
+
+    planeIcon = {
+      url: 'https://image.flaticon.com/icons/svg/61/61212.svg', // url
+      size: new google.maps.Size(50, 50), // scaled size
+      origin: new google.maps.Point(0, 0), // origin
+      anchor: new google.maps.Point(0, 0) // anchor
+    };
+
+    goldStar = {
+      path: 'M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z',
+      fillColor: 'blue',
+      fillOpacity: 0.9,
+      scale: 0.1,
+      origin: new google.maps.Point(0,0),
+      anchor: new google.maps.Point(0, 0),
+      scaledSize: new google.maps.Size(10, 10),
+      rotation: 0
+    };
+
+  }
+
+  var airports = {};
+  var flights = {};
+  var planes = {};
+  var planesPolylines = {};
+  var colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFFFF", "#000000", "#FFFF00", "#00FFFF", "#FF00FF"];
+  var count = 0;
+  var planesInfoWindows = {};
+
+
+
+
+
+  const socket = io.connect('ws://integracion-tarea-3.herokuapp.com',
+      {path: "/flights", reconnect: true, transports: ['websocket', 'polling']});
+  socket.on('connect', function(){
+    socket.emit('FLIGHTS');
+    socket.on('FLIGHTS', function (data) {
+      for (var key in data) {
+        flights[data[key].code] = data[key];
+        planes[data[key].code] = new google.maps.Marker({
+          position: {lat: 0, lng: 0},
+          map: map,
+          icon: goldStar
+        });
+
+        var content = ("<H3>" + data[key].code + "</H3>·Aerolínea:<br/>" + data[key].airline + "<br/>·"+
+                        data[key].plane + "<br/>·" + data[key].seats.to_s + "Asientos<br/>·Destino: " +
+                        data[key].destination.city + "·Posición: 0, 0");
+        var infowindow = new google.maps.InfoWindow();
+        var marker = planes[data[key].code];
+        google.maps.event.addListener(marker, 'click', (function(marker, content, infowindow) {
+              return function() {
+                infowindow.setContent(content);
+                infowindow.open(map, marker);
+              };
+            })(marker, content, infowindow));
+
+        planes[data[key].code].setMap(map);
+        planesInfoWindows[data[key].code] = infowindow;
+
+
+        planesPolylines[data[key].code] = new google.maps.Polyline({
+          path: [],
+          geodesic: true,
+          strokeColor: colors[count],
+          strokeOpacity: 1.0,
+          strokeWeight: 5
+        });
+        if (count < 7) {count += 1;} else {count = 0;}
+
+        planesPolylines[data[key].code].setMap(map);
+
+
+        var flightPath = new google.maps.Polyline({
+          path: [
+            {lat: flights[data[key].code].origin.airport_position[0], lng: flights[data[key].code].origin.airport_position[1]},
+            {lat: flights[data[key].code].destination.airport_position[0], lng: flights[data[key].code].destination.airport_position[1]}
+          ],
+          geodesic: true,
+          strokeColor: '#49639A',
+          strokeOpacity: 0.5,
+          strokeWeight: 10
+        });
+        flightPath.setMap(map);
+
+      }
+      console.log('flights');
+      console.log(flights);
+      console.log('planes');
+      console.log(planes);
+    });
+
+    socket.emit('AIRPORTS');
+    socket.on('AIRPORTS', function (data) {
+      for (var key in data) {
+        console.log('airports');
+        console.log(data[key]);
+        airports[key] = new google.maps.Marker({
+          position: {lat: data[key].airport_position[0], lng: data[key].airport_position[1]},
+          map: map,
+        });
+
+        var content = ("<H3>" + data[key].name + "</H3>" + data[key].country + ", " + data[key].city + "<br/>" + data[key].airport_code);
+        var infowindow = new google.maps.InfoWindow();
+        var marker = airports[key];
+        google.maps.event.addListener(marker, 'click', (function(marker, content, infowindow) {
+              return function() {
+                infowindow.setContent(content);
+                infowindow.open(map, marker);
+              };
+            })(marker, content, infowindow));
+
+        airports[key].setMap(map);
+      }
+    });
+
+    socket.on('POSITION', function (data) {
+      console.log(planes[data.code]);
+      planes[data.code].setPosition({lat: data.position[0], lng: data.position[1]});
+
+      var path = planesPolylines[data.code].getPath();
+      path.push(new google.maps.LatLng(data.position[0],data.position[1]));
+      planesPolylines[data.code].setPath(path);
+
+      var content = ("<H3>" + flights[data.code].code + "</H3>·Aerolínea:<br/>  " + flights[data.code].airline + "<br/>·"+
+                      flights[data.code].plane + "<br/>·" + flights[data.code].seats.toString() + " Asientos<br/>·Destino: " +
+                      flights[data.code].destination.city + "<br/>·Posición: " + data.position[0].toString() + ", " + data.position[1].toString());
+      planesInfoWindows[data.code].setContent(content);
+
+
+
+    });
+
+  });
+
+  // This example adds a marker to indicate the position of Bondi Beach in Sydney,
+  // Australia.
+
+//
+//
+//
+//
+//   handler = Gmaps.build('Google');
+//   handler.buildMap({ provider: {}, internal: {id: 'map'}}, function(){
+//     markers = handler.addMarkers(<%=raw @hash.to_json %>);
+//
+//     var pol = <%=raw @lines.to_json %>;
+//     var polylines2 = handler.addPolylines(<%=raw @lines.to_json %>, { strokeColor: '#49639A', strokeOpacity: 0.5, strokeWeight: 10});
+//     var polylines = handler.addPolylines(
+//    [
+//      [
+//        {lat: 42, lng: -6},
+//        {lat: 50, lng: -6}
+//      ]
+//    ],
+//    { strokeColor: '#49639A'}
+//  );
+//     handler.bounds.extendWith(polylines2);
+//     handler.bounds.extendWith(markers);
+//     handler.fitMapToBounds();
+//   });
+//
+</script>
+<!-- <script async defer
+// src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBA5RkSaDd_pJrHXEZckSP80Ww2n0fVfS4&callback=initMap"></script> -->
+<!-- <div id="map"></div>
+//     <script>
+//       var map;
+//       function initMap() {
+//         map = new google.maps.Map(document.getElementById('map'), {
+//           center: {lat: -34.397, lng: 150.644},
+//           zoom: 8
+//         });
+//       }
+//     </script>
+//     -->
